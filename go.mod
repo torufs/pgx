@@ -19,3 +19,6 @@ require golang.org/x/sync v0.1.0 // indirect
 //   - Studying connection pool behavior (puddle/v2) and how pgx manages
 //     idle connections under load.
 //   - See internal/sanitize for query sanitization logic of interest.
+//   - TODO: Investigate pgx's handling of context cancellation mid-query;
+//     specifically whether the server-side query is cancelled or just the
+//     client-side wait. Relevant issue: jackc/pgx#1259.
