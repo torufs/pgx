@@ -47,9 +47,13 @@ type ConnConfig struct {
 	Password       string
 	TLSConfig      *tls.Config // nil disables TLS
 	DialFunc       DialFunc
+	// ConnectTimeout defaults to 10 seconds if not set. A value of 0 means no timeout.
 	ConnectTimeout time.Duration
 	RuntimeParams  map[string]string
 }
+
+// defaultConnectTimeout is used when ConnConfig.ConnectTimeout is not explicitly set.
+const defaultConnectTimeout = 10 * time.Second
 
 // DialFunc is a function that can be used to connect to a PostgreSQL server.
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
@@ -89,6 +93,16 @@ func Connect(ctx context.Context, config *ConnConfig) (*PgConn, error) {
 		dialFunc = d.DialContext
 	}
 
+	// Apply a default connect timeout if none is specified.
+	connectTimeout := config.ConnectTimeout
+	if connectTimeout == 0 {
+		connectTimeout = defaultConnectTimeout
+	}
+
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, connectTimeout)
+	defer cancel()
+
 	var err error
 	pc.conn, err = dialFunc(ctx, network, addr)
 	if err != nil {
@@ -114,16 +128,4 @@ func (pc *PgConn) Close(ctx context.Context) error {
 // IsClosed reports whether the connection has been closed.
 func (pc *PgConn) IsClosed() bool {
 	return pc.closed
-}
-
-// ParameterStatus returns the value of a parameter reported by the server
-// (e.g. server_version, client_encoding). Returns an empty string for
-// unknown parameters.
-func (pc *PgConn) ParameterStatus(key string) string {
-	return pc.parameterStatuses[key]
-}
-
-// PID returns the backend PID for this connection.
-func (pc *PgConn) PID() uint32 {
-	return pc.pid
 }
